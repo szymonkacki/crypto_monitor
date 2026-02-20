@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Crypto Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+        .section { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; }
+        button { cursor: pointer; padding: 5px 10px; }
+        input { padding: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    </style>
+</head>
+<body>
+
+<h1>Crypto Monitor (Microservices)</h1>
+
+<div class="section">
+    <h3>1. Kurs BTC na żywo (RabbitMQ -> Core)</h3>
+    <canvas id="btcChart"></canvas>
+</div>
+
+<div class="section">
+    <h3>2. Zarządzanie Alertami (CRUD)</h3>
+
+    <div>
+        <input type="number" id="alertInput" placeholder="Podaj próg (np. 95000)">
+        <button onclick="addAlert()">Dodaj Alert (POST)</button>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Próg (USD)</th>
+            <th>Akcje</th>
+        </tr>
+        </thead>
+        <tbody id="alertTableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    const ctx = document.getElementById('btcChart').getContext('2d');
+    const myChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'BTC Price', data: [], borderColor: 'blue', tension: 0.1 }] }
+    });
+
+    async function updateChart()
+    {
+        const res = await fetch('/api/prices');
+        const data = await res.json();
+        const recent = data.slice(-20);
+        myChart.data.labels = recent.map(d => new Date(d.timestamp).toLocaleTimeString());
+        myChart.data.datasets[0].data = recent.map(d => d.price);
+        myChart.update();
+    }
+    setInterval(updateChart, 2000);
+
+    async function loadAlerts()
+    {
+        const res = await fetch('/api/alerts');
+        const alerts = await res.json();
+        const tbody = document.getElementById('alertTableBody');
+        tbody.innerHTML = '';
+
+        alerts.forEach(alert => {
+            const row = `<tr>
+                <td>${alert.id}</td>
+                <td>${alert.limitValue}</td>
+                <td>
+                    <button onclick="deleteAlert(${alert.id})" style="color:red">Usuń (DELETE)</button>
+                    <button onclick="updateAlert(${alert.id})">Edytuj (PUT)</button>
+                </td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    async function addAlert() {
+        const val = document.getElementById('alertInput').value;
+        await fetch('/api/alerts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ limitValue: parseFloat(val) })
+        });
+        loadAlerts();
+    }
+
+    async function deleteAlert(id) {
+        if (confirm("Czy na pewno chcesz usunąć ten alert?")) {
+            await fetch(`/api/alerts/${id}`, { method: 'DELETE' });
+            loadAlerts();
+        }
+    }
+
+    async function updateAlert(id) {
+        const newVal = prompt("Podaj nową wartość:");
+        if(newVal) {
+            await fetch(`/api/alerts/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ limitValue: parseFloat(newVal) })
+            });
+            loadAlerts();
+        }
+    }
+
+    loadAlerts();
+
+</script>
+</body>
+</html>
