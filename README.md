@@ -1,5 +1,7 @@
 # 📈 Crypto Monitor - Microservices Architecture
 
+*[Read this in English](README-en.md)*
+
 System monitorowania kursów kryptowalut (Bitcoin) w czasie rzeczywistym. Projekt prezentuje pełną ścieżkę przetwarzania danych: od pobrania z zewnętrznego API, przez asynchroniczne przetwarzanie, aż po wizualizację i system powiadomień.
 
 ## Główne funkcjonalności
